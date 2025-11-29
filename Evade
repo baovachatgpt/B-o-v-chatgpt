@@ -1,0 +1,190 @@
+-- BaoChatGPTHub.lua
+-- Nâng cấp: xử lý respawn, phím tắt LeftControl toggle, lưu tốc độ gốc, debounce, Heartbeat loop
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Cấu hình mặc định
+local DefaultSpeed = 55.5
+local Sliding = false
+local ToggleKey = Enum.KeyCode.LeftControl
+local debounce = false
+
+-- Tham chiếu nhân vật / humanoid
+local Character = LocalPlayer.Character
+local Humanoid
+local OriginalWalkSpeed = 16
+
+local function setHumanoidReferences(char)
+    if not char then return end
+    local ok, h = pcall(function() return char:WaitForChild("Humanoid", 5) end)
+    if ok and h then
+        Humanoid = h
+        OriginalWalkSpeed = (Humanoid and Humanoid.WalkSpeed) or 16
+    else
+        Humanoid = nil
+    end
+end
+
+-- Ban đầu
+if Character then
+    setHumanoidReferences(Character)
+end
+
+-- Khi respawn
+LocalPlayer.CharacterAdded:Connect(function(char)
+    Character = char
+    setHumanoidReferences(char)
+end)
+
+-- Tạo GUI
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BaoChatGPTHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 999
+ScreenGui.Parent = playerGui
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 270, 0, 140)
+Frame.Position = UDim2.new(0.5, -135, 0.72, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -10, 0, 34)
+Title.Position = UDim2.new(0, 5, 0, 5)
+Title.BackgroundTransparency = 1
+Title.Text = "Bảo & ChatGPT Hub"
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.TextScaled = true
+Title.Font = Enum.Font.FredokaOne
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Frame
+
+local SlideButton = Instance.new("TextButton")
+SlideButton.Size = UDim2.new(0, 220, 0, 48)
+SlideButton.Position = UDim2.new(0.5, -110, 0.35, 0)
+SlideButton.Text = "TRƯỢT VÔ HẠN: TẮT"
+SlideButton.TextScaled = true
+SlideButton.Font = Enum.Font.FredokaOne
+SlideButton.BackgroundColor3 = Color3.fromRGB(200,0,0)
+SlideButton.TextColor3 = Color3.fromRGB(255,255,255)
+SlideButton.Parent = Frame
+
+local SpeedLabel = Instance.new("TextLabel")
+SpeedLabel.Size = UDim2.new(0, 120, 0, 20)
+SpeedLabel.Position = UDim2.new(0.5, -60, 0.75, 0)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Text = "Tốc độ: " .. tostring(DefaultSpeed)
+SpeedLabel.TextColor3 = Color3.fromRGB(255,255,255)
+SpeedLabel.TextScaled = false
+SpeedLabel.Font = Enum.Font.SourceSans
+SpeedLabel.Parent = Frame
+
+local DecreaseBtn = Instance.new("TextButton")
+DecreaseBtn.Size = UDim2.new(0, 40, 0, 28)
+DecreaseBtn.Position = UDim2.new(0.5, -64, 0.82, 0)
+DecreaseBtn.Text = "-"
+DecreaseBtn.Font = Enum.Font.FredokaOne
+DecreaseBtn.TextScaled = true
+DecreaseBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+DecreaseBtn.TextColor3 = Color3.fromRGB(255,255,255)
+DecreaseBtn.Parent = Frame
+
+local IncreaseBtn = Instance.new("TextButton")
+IncreaseBtn.Size = UDim2.new(0, 40, 0, 28)
+IncreaseBtn.Position = UDim2.new(0.5, 24, 0.82, 0)
+IncreaseBtn.Text = "+"
+IncreaseBtn.Font = Enum.Font.FredokaOne
+IncreaseBtn.TextScaled = true
+IncreaseBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+IncreaseBtn.TextColor3 = Color3.fromRGB(255,255,255)
+IncreaseBtn.Parent = Frame
+
+-- Hàm bật/tắt slide
+local function updateUIButton()
+    if Sliding then
+        SlideButton.Text = "TRƯỢT VÔ HẠN: BẬT"
+        SlideButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
+    else
+        SlideButton.Text = "TRƯỢT VÔ HẠN: TẮT"
+        SlideButton.BackgroundColor3 = Color3.fromRGB(200,0,0)
+    end
+end
+
+local function EnableSlide()
+    Sliding = true
+    updateUIButton()
+end
+
+local function DisableSlide()
+    Sliding = false
+    if Humanoid and OriginalWalkSpeed then
+        Humanoid.WalkSpeed = OriginalWalkSpeed
+    end
+    updateUIButton()
+end
+
+SlideButton.MouseButton1Click:Connect(function()
+    if debounce then return end
+    debounce = true
+    if Sliding then
+        DisableSlide()
+    else
+        EnableSlide()
+    end
+    wait(0.15)
+    debounce = false
+end)
+
+-- Chỉnh tốc độ
+local Speed = DefaultSpeed
+local function setSpeed(s)
+    Speed = math.clamp(s, 1, 500)
+    SpeedLabel.Text = "Tốc độ: " .. string.format("%.1f", Speed)
+    if Sliding and Humanoid then
+        Humanoid.WalkSpeed = Speed
+    end
+end
+
+DecreaseBtn.MouseButton1Click:Connect(function()
+    setSpeed(Speed - 5)
+end)
+IncreaseBtn.MouseButton1Click:Connect(function()
+    setSpeed(Speed + 5)
+end)
+
+-- Toggle bằng phím
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if UIS:GetFocusedTextBox() then return end
+    if input.KeyCode == ToggleKey then
+        if debounce then return end
+        debounce = true
+        if Sliding then DisableSlide() else EnableSlide() end
+        wait(0.12)
+        debounce = false
+    end
+end)
+
+-- Loop chính: Heartbeat
+RunService.Heartbeat:Connect(function()
+    if not Humanoid then return end
+    if Sliding then
+        if Humanoid.MoveDirection.Magnitude > 0.01 then
+            pcall(function()
+                Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                Humanoid.WalkSpeed = Speed
+            end)
+        end
+    else
+        if Humanoid and OriginalWalkSpeed then
+            Humanoid.WalkSpeed = OriginalWalkSpeed
+        end
+    end
+end)
