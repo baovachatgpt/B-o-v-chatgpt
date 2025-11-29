@@ -1,0 +1,65 @@
+-- Evade Infinite Slide by Bao
+-- Ui bật tắt trượt vô hạn
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local Speed = 55.5
+local Sliding = false
+
+-- UI
+local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+local Button = Instance.new("TextButton", ScreenGui)
+
+ScreenGui.ResetOnSpawn = false
+Button.Size = UDim2.new(0, 200, 0, 60)
+Button.Position = UDim2.new(0.5, -100, 0.8, 0)
+Button.Text = "TRƯỢT VÔ HẠN: TẮT"
+Button.BackgroundColor3 = Color3.fromRGB(200,0,0)
+Button.TextScaled = true
+Button.Font = Enum.Font.FredokaOne
+Button.TextColor3 = Color3.fromRGB(255,255,255)
+
+local function EnableSlide()
+    Sliding = true
+    Button.Text = "TRƯỢT VÔ HẠN: BẬT"
+    Button.BackgroundColor3 = Color3.fromRGB(0,200,0)
+end
+
+local function DisableSlide()
+    Sliding = false
+    Button.Text = "TRƯỢT VÔ HẠN: TẮT"
+    Button.BackgroundColor3 = Color3.fromRGB(200,0,0)
+end
+
+Button.MouseButton1Click:Connect(function()
+    if Sliding then
+        DisableSlide()
+    else
+        EnableSlide()
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if Sliding then
+        if Humanoid.MoveDirection.Magnitude > 0 then
+            Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+            Humanoid.WalkSpeed = Speed
+        end
+    else
+        Humanoid.WalkSpeed = 16
+        Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+    end
+end)
+
+-- Không mất tốc khi đâm vào vật
+Humanoid.StateChanged:Connect(function(_,new)
+    if Sliding and (new == Enum.HumanoidStateType.Running or new == Enum.HumanoidStateType.Climbing) then
+        Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+        Humanoid.WalkSpeed = Speed
+    end
+end)
